@@ -76,8 +76,13 @@ class ChemistryHydrop(ChemistryBase):
         they carry pairs well inside that budget -- they share their 10bp cores with the
         custom_seq sets, which carry the same pairs at half the budget. Retiring an entry is
         not ours to do, so refusing to construct would only make the chemistry unusable while
-        leaving the risk exactly where it was. The violation is warned about on every run
-        instead, which is the whole of what this project can do about someone else's design.
+        leaving the risk exactly where it was.
+
+        Known violations at a budget of two: BC1 holds 1 pair (closest 'AACCAACTTA' /
+        'CACCAACCTA', distance 2), BC2 holds 3 (closest 'AGCTTGAGAG' / 'GGCTTGAGAG',
+        distance 1) and BC3 holds 3 (closest 'ACTAGCTCTC' / 'ACTAGGCTTC', distance 2). One
+        error inside the budget turns either entry of such a pair into the other, reported as
+        a perfect match, so reads carrying it are misattributed undetectably.
 
         Returns:
             A reporting-only policy.

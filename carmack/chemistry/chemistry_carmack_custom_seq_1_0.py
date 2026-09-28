@@ -60,7 +60,7 @@ BC3_PATH = files("carmack.data.barcodes.carmack.custom_seq").joinpath(
 # in code and only retiring an entry fixes it, which is a barcode-design decision about a plate
 # well and about libraries already sequenced against the current set. Until that decision is
 # taken the pair is declared here rather than left to fail construction, so the blind spot is
-# recorded and warned about on every run instead of being silently absorbed.
+# recorded in code rather than silently absorbed.
 BC2_INDISTINGUISHABLE_PAIR = frozenset({"AGCTTGAGAG", "GGCTTGAGAG"})
 
 # The confirmed target indexes ship as data, one sequence per line, so the set can grow

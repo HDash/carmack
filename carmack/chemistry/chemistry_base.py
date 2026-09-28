@@ -108,23 +108,6 @@ def close_whitelist_pairs(
     return distances
 
 
-@lru_cache(maxsize=None)
-def warn_once(message: str) -> None:
-    """
-    Emit a warning the first time this process is asked to, and never again.
-
-    Chemistries are constructed when their module is imported, because the factory reads a
-    chemistry's name off an instance to register it, and they are then constructed again for
-    every run and every test. A construction-time warning would therefore repeat several times
-    before anything has happened. Caching on the message keeps each distinct finding to one
-    line per process without the caller having to track what it has already said.
-
-    Args:
-        message: The warning text, which is also the cache key.
-    """
-    log.warning(message)
-
-
 @dataclass(frozen=True)
 class WhitelistDistancePolicy:
     """
@@ -135,11 +118,12 @@ class WhitelistDistancePolicy:
     entry, so a violation there is a defect and construction should refuse. A chemistry
     implementing someone else's published protocol cannot change its whitelist at all, so
     refusing to construct would only make the chemistry unusable while leaving the underlying
-    risk exactly where it was; reporting it loudly is the whole of what we can do.
+    risk exactly where it was, so the known violations are recorded as comments on the
+    chemistry instead.
 
     Attributes:
-        enforce: Whether a pair within the error budget fails construction. False downgrades
-            it to a warning, for a whitelist this project does not own.
+        enforce: Whether a pair within the error budget fails construction. False skips the
+            check, for a whitelist this project does not own.
         exempt_pairs: Pairs, each as a frozenset of the two entries, that are known to violate
             the bound and are accepted for now. Declaring one is a recorded decision to ship a
             whitelist with a known blind spot, which is why it is an explicit pair rather than
@@ -757,33 +741,33 @@ class ChemistryBase(ABC):
 
     def validate_whitelist_distances(self) -> None:
         """
-        Reject or report whitelists that cannot satisfy the error budget they are used with.
+        Reject a whitelist holding two entries within the error budget it is used with.
 
         Correcting a read to a whitelist entry is only sound while every window inside the
-        error budget has a single nearest entry. Two thresholds bound that, and they differ in
-        kind rather than degree:
+        error budget has a single nearest entry. Two entries within ``max_errors`` of each
+        other break that: one sequencing error turns one valid entry into *the other valid
+        entry*, which then matches exactly at its expected position and is reported as a
+        perfect match. Nothing downstream can detect it, so the read is attributed to the
+        wrong cell. No matching logic can fix this; only the whitelist can, which is why this
+        fails construction for a whitelist we own.
 
-        * **Within ``max_errors``** -- one sequencing error inside the budget turns one valid
-          entry into *the other valid entry*. It then matches exactly at its own expected
-          position and is reported as a perfect match, so there is no ambiguity to observe and
-          nothing downstream can detect it. The read is not lost, it is attributed to the wrong
-          cell. No matching logic can fix this; only the whitelist can, which is why this tier
-          fails construction for a whitelist we own.
-        * **Within ``2 * max_errors``** -- a window can sit equally close to two entries. That
-          is observable, and is now a terminal ambiguity verdict rather than a guess, so the
-          cost is a dropped read and not a wrong barcode. Worth reporting; not worth refusing
-          to run over.
+        Pairs within ``2 * max_errors`` are not checked: a window equally close to two entries
+        is observable and is a terminal ambiguity verdict, so it costs a dropped read rather
+        than a wrong barcode.
 
-        The scan escalates rather than going straight to the wider bound. Deletion
-        neighbourhoods grow combinatorially in the distance, so scanning at
-        ``2 * max_errors`` is markedly more expensive than at ``max_errors``, and a whitelist
-        that already fails the narrow bound has nothing more to learn from the wide one.
+        An exempted pair, or any pair under a non-enforcing policy, passes silently. Every
+        chemistry is constructed at import, so anything said here would reach every user on
+        every launch whichever chemistry they run. The known pairs are recorded as comments
+        on the chemistries that carry them instead.
 
         Raises:
             ValueError: If a whitelist holds two entries within ``max_errors`` of each other,
                 the pair is not exempted, and the chemistry's policy enforces the bound.
         """
         policy = self.whitelist_distance_policy()
+        if not policy.enforce:
+            return
+
         whitelists = self.whitelists
 
         for component in self.read_structure:
@@ -793,16 +777,15 @@ class ChemistryBase(ABC):
             if budget is None or budget < 1 or whitelist is None or len(whitelist) < 2:
                 continue
 
-            within_budget = close_whitelist_pairs(whitelist, budget)
             unexempted = {
                 pair: distance
-                for pair, distance in within_budget.items()
+                for pair, distance in close_whitelist_pairs(whitelist, budget).items()
                 if frozenset(pair) not in policy.exempt_pairs
             }
 
             if unexempted:
                 pair, distance = min(unexempted.items(), key=lambda item: item[1])
-                message = (
+                raise ValueError(
                     f"Whitelist for component '{component.name}' holds {len(unexempted)} pair(s) "
                     f"of entries within its error budget of {budget}, the closest being "
                     f"'{pair[0]}' and '{pair[1]}' at edit distance {distance}. A single error "
@@ -811,41 +794,6 @@ class ChemistryBase(ABC):
                     "match, so the misassignment cannot be detected downstream. Retire one entry "
                     f"of each pair so that every pair is more than {budget} edits apart."
                 )
-                if policy.enforce:
-                    raise ValueError(message)
-                warn_once(message)
-            elif within_budget:
-                pair, distance = min(within_budget.items(), key=lambda item: item[1])
-                # Every offending pair is a recorded exemption. Say so on every run anyway: the
-                # reads such a pair mis-attributes are indistinguishable from correct ones, so
-                # this line is the only place the blind spot surfaces at all.
-                warn_once(
-                    f"Whitelist for component '{component.name}' holds {len(within_budget)} "
-                    "pair(s) of entries within its error budget of "
-                    f"{budget}, all of them declared exemptions, the closest being '{pair[0]}' "
-                    f"and '{pair[1]}' at edit distance {distance}. A single error inside the "
-                    "budget silently turns one of these valid entries into the other and is "
-                    "reported as a perfect match. Reads carrying it are misattributed and "
-                    "cannot be identified after the fact."
-                )
-
-            # The wider bound is informational: a window equally close to two entries is
-            # detectable, and is now a terminal ambiguity verdict, so it costs a dropped read
-            # rather than a wrong barcode. It is reported at debug both for that reason and
-            # because the deletion neighbourhood it needs grows combinatorially in the bound --
-            # scanning at twice a budget of two is an order of magnitude dearer than at the
-            # budget itself, which is not worth paying on every import to say nothing new.
-            if log.isEnabledFor(logging.DEBUG):
-                wider = close_whitelist_pairs(whitelist, 2 * budget)
-                if wider:
-                    pair, distance = min(wider.items(), key=lambda item: item[1])
-                    log.debug(
-                        f"Whitelist for component '{component.name}' holds {len(wider)} pair(s) "
-                        f"of entries within {2 * budget} edits, the closest being '{pair[0]}' "
-                        f"and '{pair[1]}' at edit distance {distance}. A read window can sit "
-                        "equally close to both entries of such a pair, which is unresolvable "
-                        "and reported as an ambiguous match rather than corrected."
-                    )
 
     def __post_init__(self):
         # Validate that all barcode components defined in the read structure have whitelists
