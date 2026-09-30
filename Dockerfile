@@ -83,6 +83,7 @@ CMD ["pytest"]
 # runtime: the pipeline itself, and the default build target
 ########################################################################
 FROM installed AS runtime
+RUN false
 
 # Dropping the source tree stops carmack/ next to WORKDIR shadowing the installed
 # package for anything run from this directory, which is the failure
