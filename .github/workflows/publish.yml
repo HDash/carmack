@@ -1,5 +1,5 @@
 # The one workflow that publishes. It starts when a tests.yml run finishes, and pushes the
-# runtime image to ghcr.io/crick-pipelines-stp/carmack only if that run passed and was a
+# runtime image to ghcr.io/neurogenomics/carmack only if that run passed and was a
 # push to main, a v* tag, or a dispatch from one of those refs. To rebuild an image,
 # dispatch the "Docker tests" workflow on main or the tag, not this one.
 #
