@@ -44,7 +44,7 @@ FROM base AS installed
 
 LABEL org.opencontainers.image.title="carmack" \
       org.opencontainers.image.description="Single-cell multiomic tools" \
-      org.opencontainers.image.source="https://github.com/crick-pipelines-stp/carmack"
+      org.opencontainers.image.source="https://github.com/neurogenomics/carmack"
 
 # Supplied by the caller, and must be a PEP 440 version -- pip rejects anything else,
 # so a bare commit sha will not do:

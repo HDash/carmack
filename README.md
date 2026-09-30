@@ -1,8 +1,8 @@
 # carmack
 
-[![Docker tests](https://github.com/crick-pipelines-stp/carmack/actions/workflows/tests.yml/badge.svg)](https://github.com/crick-pipelines-stp/carmack/actions/workflows/tests.yml)
-[![Publish image](https://github.com/crick-pipelines-stp/carmack/actions/workflows/publish.yml/badge.svg)](https://github.com/crick-pipelines-stp/carmack/actions/workflows/publish.yml)
-[![ghcr.io](https://img.shields.io/badge/ghcr.io-carmack-2496ED?logo=docker&logoColor=white)](https://github.com/crick-pipelines-stp/carmack/pkgs/container/carmack)
+[![Docker tests](https://github.com/neurogenomics/carmack/actions/workflows/tests.yml/badge.svg)](https://github.com/neurogenomics/carmack/actions/workflows/tests.yml)
+[![Publish image](https://github.com/neurogenomics/carmack/actions/workflows/publish.yml/badge.svg)](https://github.com/neurogenomics/carmack/actions/workflows/publish.yml)
+[![ghcr.io](https://img.shields.io/badge/ghcr.io-carmack-2496ED?logo=docker&logoColor=white)](https://github.com/neurogenomics/carmack/pkgs/container/carmack)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -15,7 +15,7 @@ read preparation, then deduplicates the aligned reads and calls cells.
 ### Container image
 
 CI publishes the `runtime` target of the `Dockerfile` to
-`ghcr.io/crick-pipelines-stp/carmack` (public, no login needed) after the test
+`ghcr.io/neurogenomics/carmack` (public, no login needed) after the test
 suite passes, from `.github/workflows/publish.yml`:
 
 | Tag | Pushed on | Moves? |
@@ -26,7 +26,7 @@ suite passes, from `.github/workflows/publish.yml`:
 | `latest` | a `vX.Y.Z` git tag that is not a pre-release | yes |
 
 Pin a `sha-*` tag together with its digest (printed in the run's summary), for
-example `ghcr.io/crick-pipelines-stp/carmack:sha-01f2d18@sha256:…`; a tag on its
+example `ghcr.io/neurogenomics/carmack:sha-01f2d18@sha256:…`; a tag on its
 own can in principle be re-pushed. `carmack --version` inside the image reports
 `X.Y.Z` for a release, `X.Y.Z.N` for N commits past one, and `0.0.0+<sha>`
 before the first release. The image includes `ps`, which Nextflow needs to run a
@@ -38,7 +38,7 @@ task at all. No `local` tag is ever published, so a consumer's own
 carmack needs Python 3.12 or newer.
 
 ```sh
-pip install git+https://github.com/crick-pipelines-stp/carmack.git
+pip install git+https://github.com/neurogenomics/carmack.git
 ```
 
 Put [`pigz`](https://zlib.net/pigz/) on `PATH` as well. Every stage that writes `.gz`
