@@ -88,7 +88,7 @@ def run_carmack():
     stderr.print("███████████████████████████████████████████████████████████████████", highlight=False)
     stderr.print("\n", highlight=False)
     stderr.print(
-        f"[grey25]    carmack version {carmack.__version__} - [link=https://github.com/briscoelab/carmack]https://github.com/briscoelab/carmack[/]",
+        f"[grey25]    carmack version {carmack.__version__} - [link=https://github.com/neurogenomics/carmack]https://github.com/neurogenomics/carmack[/]",
         highlight=False,
     )
     stderr.print("\n", highlight=False)
